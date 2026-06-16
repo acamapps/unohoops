@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Uno Hoops</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f5f3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    gap: 6px;
+    padding: 6px 0;
+  }
+  .banner { width: 100%; max-width: 1920px; padding: 0 80px; }
+  .banner img { width: 100%; display: block; border-radius: 12px; }
+
+  /* ── timer row ── */
+  .timer-wrap {
+    display: flex;
+    gap: 24px;
+    width: 100%;
+    max-width: 1920px;
+    padding: 0 80px;
+    height: 500px;
+  }
+  .timer-card {
+    flex: 1;
+    background: lightcoral;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 16px;
+    padding: 0.25rem 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: background 0.6s ease;
+    overflow: hidden;
+  }
+  .timer-card.phase-long { background: lightgreen; }
+  .timer-display {
+    font-size: 300px;
+    font-weight: 500;
+    color: #1a1a1a;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    transition: color 0.3s;
+  }
+  .timer-display.warning { color: #BA7517; }
+  .timer-display.danger  { color: #A32D2D; }
+  .timer-display.done    { color: #1D9E75; }
+  .phase-badge {
+    font-size: 36px;
+    font-weight: 700;
+    padding: 4px 20px;
+    border-radius: 8px;
+    background: #e6f1fb;
+    color: #185FA5;
+  }
+  .timer-sub { font-size: 45px; font-weight: 500; color: #000000; }
+  .progress-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: nowrap;
+    justify-content: center;
+    width: 100%;
+  }
+  .pip {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: #ebebeb;
+    border: 1px solid #ddd;
+    transition: background 0.3s;
+    flex-shrink: 0;
+  }
+  .pip.done-pip   { background: #1D9E75; border-color: #0F6E56; }
+  .pip.active-pip { background: #378ADD; border-color: #185FA5; }
+
+  /* ── schedule row ── */
+  .schedule-wrap {
+    display: flex;
+    gap: 24px;
+    width: 100%;
+    max-width: 1920px;
+    padding: 0 80px;
+  }
+  .schedule-card {
+    flex: 1;
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .schedule-card table {
+    width: 100%;
+    border-collapse: collapse;
+    flex: 1;
+    height: 100%;
+  }
+  .schedule-card td {
+    padding: 8px 16px;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+    text-align: center;
+  }
+  .schedule-card tr:last-child td { border-bottom: none; }
+  .schedule-card td:first-child { border-right: 1px solid #eee; width: 50%; }
+  .col-header {
+    font-weight: 700;
+    font-size: 20px;
+    background: #f0f0ee;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 8px 24px;
+  }
+  .sub-header {
+    font-size: 13px;
+    font-weight: 900;
+    background: #f8f8f8;
+    color: #000000;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 4px 24px;
+    border-bottom: 1px solid #eee;
+  }
+  /* logo-only matchup: logos expand to fill the cell */
+  .match-cell {
+    height: 100%;
+  }
+  .match-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 100%;
+    padding: 6px 0;
+  }
+  .match-inner img {
+    flex: 1;
+    min-width: 0;
+    max-height: 90px;
+    object-fit: contain;
+  }
+  .vs-text { font-size: 28px; font-weight: 700; color: #aaa; flex-shrink: 0; }
+  .match-cell-now { background: GreenYellow; }
+  .match-cell-now .match-inner img  { max-height: 90px; }
+  .match-cell-next { background: Gainsboro; }
+  .match-cell-next .match-inner img { max-height: 90px; }
+  .match-cell-next .vs-text { opacity: 0.6; }
+
+  /* ── start button ── */
+  #startBtn {
+    font-family: inherit;
+    font-size: 18px;
+    padding: 10px 48px;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    background: transparent;
+    color: #1a1a1a;
+    cursor: pointer;
+  }
+  #startBtn:hover  { background: #f0f0ee; }
+  #startBtn:active { transform: scale(0.98); }
+  #startBtn.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<div class="banner">
+  <img src="UnoHoops_Banner.png" alt="UnoHoops Banner">
+</div>
+
+<div class="timer-wrap">
+  <div class="timer-card" id="cardA">
+    <div class="timer-display" id="dispA">1:00</div>
+    <div id="phaseA" class="phase-badge">GET READY</div>
+    <div class="timer-sub" id="subA">Round 1 of 15</div>
+    <div class="progress-row" id="pipsA"></div>
+  </div>
+  <div class="timer-card" id="cardB">
+    <div class="timer-display" id="dispB">4:00</div>
+    <div id="phaseB" class="phase-badge">GET READY</div>
+    <div class="timer-sub" id="subB">Round 1 of 5</div>
+    <div class="progress-row" id="pipsB"></div>
+  </div>
+</div>
+
+<!-- Bottom row: Court 1 card (left) + Court 2 card (right) -->
+<div class="schedule-wrap">
+  <div class="schedule-card" id="schedC1">
+    <table>
+      <tr>
+        <td class="col-header" colspan="2">Court 1 (SENIOR HOUSE)</td>
+      </tr>
+      <tr>
+        <td class="sub-header">NOW</td>
+        <td class="sub-header">NEXT</td>
+      </tr>
+      <tr>
+        <td class="match-cell match-cell-now"><div class="match-inner" id="c1-now"></div></td>
+        <td class="match-cell match-cell-next"><div class="match-inner" id="c1-next"></div></td>
+      </tr>
+    </table>
+  </div>
+  <div class="schedule-card" id="schedC2">
+    <table>
+      <tr>
+        <td class="col-header" colspan="2">Court 2 (JUNIOR HOUSE)</td>
+      </tr>
+      <tr>
+        <td class="sub-header">NOW</td>
+        <td class="sub-header">NEXT</td>
+      </tr>
+      <tr>
+        <td class="match-cell match-cell-now"><div class="match-inner" id="c2-now"></div></td>
+        <td class="match-cell match-cell-next"><div class="match-inner" id="c2-next"></div></td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<button id="startBtn" onclick="startBoth()">&#9654; Start</button>
+
+<script>
+  /* ── Schedule data — each entry is [team1, team2] ── */
+  const COURT1_A = [
+    ['Jamieson',   'Playford'],
+    ['Adams',      'Uley'],
+    ['Craigmore',  'Whittington'],
+    ['Adams',      'Jamieson'],
+    ['Craigmore',  'Playford'],
+    ['Whittington','Uley'],
+    ['Jamieson',   'Craigmore'],
+    ['Whittington','Adams'],
+    ['Uley',       'Playford'],
+    ['Jamieson',   'Whittington'],
+    ['Uley',       'Craigmore'],
+    ['Playford',   'Adams'],
+    ['Uley',       'Jamieson'],
+    ['Playford',   'Whittington'],
+    ['Adams',      'Craigmore'],
+  ];
+  const COURT2_A = [
+    ['Adams',      'Uley'],
+    ['Craigmore',  'Whittington'],
+    ['Adams',      'Jamieson'],
+    ['Craigmore',  'Playford'],
+    ['Whittington','Uley'],
+    ['Jamieson',   'Craigmore'],
+    ['Whittington','Adams'],
+    ['Uley',       'Playford'],
+    ['Jamieson',   'Whittington'],
+    ['Uley',       'Craigmore'],
+    ['Playford',   'Adams'],
+    ['Uley',       'Jamieson'],
+    ['Playford',   'Whittington'],
+    ['Adams',      'Craigmore'],
+    ['Jamieson',   'Playford'],
+  ];
+
+  function logo(team) {
+    return `<img src="${team}.png" alt="${team}">`;
+  }
+
+  function matchupHTML(pair) {
+    if (!pair) return '<span class="vs-text">—</span>';
+    const [t1, t2] = pair;
+    return `${logo(t1)}<span class="vs-text">vs</span>${logo(t2)}`;
+  }
+
+  function matchup(list, round) {
+    if (round >= list.length) return null;
+    return list[round];
+  }
+
+  function renderScheduleA(round) {
+    document.getElementById('c1-now').innerHTML  = matchupHTML(matchup(COURT1_A, round));
+    document.getElementById('c2-now').innerHTML  = matchupHTML(matchup(COURT2_A, round));
+    document.getElementById('c1-next').innerHTML = matchupHTML(matchup(COURT1_A, round + 1));
+    document.getElementById('c2-next').innerHTML = matchupHTML(matchup(COURT2_A, round + 1));
+  }
+
+  /* ── Timer helpers ── */
+  function fmt(s) {
+    const m = Math.floor(s / 60), sec = s % 60;
+    return m + ':' + String(sec).padStart(2, '0');
+  }
+  function colorClass(s, total) {
+    if (s <= 0)            return 'done';
+    if (s / total <= 0.10) return 'danger';
+    if (s / total <= 0.25) return 'warning';
+    return '';
+  }
+  function makePips(containerId, total) {
+    const el = document.getElementById(containerId);
+    el.innerHTML = '';
+    for (let i = 0; i < total; i++) {
+      const d = document.createElement('div');
+      d.className = 'pip';
+      d.id = containerId + '_' + i;
+      el.appendChild(d);
+    }
+  }
+  function updatePips(containerId, total, doneRounds, currentRound) {
+    for (let i = 0; i < total; i++) {
+      const el = document.getElementById(containerId + '_' + i);
+      if (!el) continue;
+      if (i < doneRounds)          el.className = 'pip done-pip';
+      else if (i === currentRound) el.className = 'pip active-pip';
+      else                         el.className = 'pip';
+    }
+  }
+
+  /* ── Generic timer engine ── */
+  const allTimers = [];
+
+  function makeTimer(cfg) {
+    const state = {
+      phase: 0,
+      secsLeft: cfg.phases[0],
+      endTime: null,
+      interval: null,
+      started: false,
+      done: false,
+      lastRound: -1
+    };
+
+    makePips(cfg.pipsId, cfg.rounds);
+    render();
+
+    function recalc() {
+      if (!state.started || state.done) return;
+      const now = Date.now();
+      while (state.phase < cfg.totalPhases) {
+        const remaining = state.endTime - now;
+        if (remaining > 0) {
+          state.secsLeft = Math.ceil(remaining / 1000);
+          break;
+        }
+        state.phase++;
+        if (state.phase >= cfg.totalPhases) {
+          state.done = true;
+          state.secsLeft = 0;
+          break;
+        }
+        state.endTime = state.endTime + cfg.phases[state.phase] * 1000;
+        state.secsLeft = cfg.phases[state.phase];
+      }
+      render();
+    }
+
+    function render() {
+      const { phase, secsLeft } = state;
+      const done = state.done;
+      const round = Math.floor(phase / 2);
+      const phaseInRound = phase % 2;
+      const displayRound = round + 1;
+
+      const dispEl = document.getElementById(cfg.dispId);
+      dispEl.textContent = done ? '-' : fmt(secsLeft);
+      dispEl.className = 'timer-display ' + (done ? 'done' : colorClass(secsLeft, cfg.phases[Math.min(phase, cfg.totalPhases - 1)]));
+
+      document.getElementById(cfg.phaseId).textContent = done
+        ? 'All rounds complete'
+        : (phaseInRound === 0 ? cfg.shortLabel : cfg.longLabel);
+
+      document.getElementById(cfg.subId).textContent = done
+        ? cfg.doneLabel
+        : 'Round ' + Math.min(displayRound, cfg.rounds) + ' of ' + cfg.rounds;
+
+      document.getElementById(cfg.cardId).classList.toggle('phase-long', !done && phaseInRound === 1);
+
+      const doneRounds  = done ? cfg.rounds : round;
+      const activeRound = done ? -1 : round;
+      updatePips(cfg.pipsId, cfg.rounds, doneRounds, activeRound);
+
+      if (round !== state.lastRound) {
+        state.lastRound = round;
+        if (cfg.onRoundChange) cfg.onRoundChange(round);
+      }
+    }
+
+    function tick() {
+      recalc();
+      if (state.done) clearInterval(state.interval);
+    }
+
+    function start() {
+      if (state.started || state.done) return;
+      state.started = true;
+      state.endTime = Date.now() + state.secsLeft * 1000;
+      state.interval = setInterval(tick, 500);
+    }
+
+    allTimers.push({ recalc });
+    return { start, render };
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) allTimers.forEach(t => t.recalc());
+  });
+
+  /* ── Timer A: [1min, 4min] × 15 ── */
+  const PHASES_A = Array.from({ length: 15 }, () => [60, 240]).flat();
+  const timerA = makeTimer({
+    phases: PHASES_A, rounds: 15, totalPhases: 30,
+    dispId: 'dispA', phaseId: 'phaseA', subId: 'subA',
+    cardId: 'cardA', pipsId: 'pipsA',
+    shortLabel: 'GET READY', longLabel: 'IN PLAY!',
+    doneLabel: '15 rounds done!',
+    onRoundChange: renderScheduleA
+  });
+
+  /* ── Timer B: [4min, 11min] × 5 ── */
+  const PHASES_B = Array.from({ length: 5 }, () => [240, 660]).flat();
+  const timerB = makeTimer({
+    phases: PHASES_B, rounds: 5, totalPhases: 10,
+    dispId: 'dispB', phaseId: 'phaseB', subId: 'subB',
+    cardId: 'cardB', pipsId: 'pipsB',
+    shortLabel: 'GET READY', longLabel: 'IN PLAY!',
+    doneLabel: '5 rounds done!'
+  });
+
+  // Initialise schedule cards immediately
+  renderScheduleA(0);
+
+  function startBoth() {
+    document.getElementById('startBtn').classList.add('hidden');
+    const el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+    else if (el.msRequestFullscreen) el.msRequestFullscreen();
+    timerA.start();
+    timerB.start();
+  }
+</script>
+</body>
+</html>
