@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Uno Hoops Live Ladder</title>
+
+<style>
+:root{
+    --gold:#ffd700;
+    --silver:#c0c0c0;
+    --bronze:#cd7f32;
+}
+
+/* ================= GLOBAL ================= */
+
+body{
+    margin:0;
+    font-family:Segoe UI, Arial, sans-serif;
+    background:#000;
+    color:#fff;
+}
+
+/* ================= HEADER ================= */
+
+header{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:10px 20px;
+    position:relative;
+}
+
+header img{
+    height:200px;
+}
+
+/* STATUS */
+.meta{
+    position:absolute;
+    right:20px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    font-size:18px;
+}
+
+#status{
+    font-weight:600;
+    animation:pulseLive 1.5s infinite;
+}
+
+@keyframes pulseLive{
+    0%{opacity:1;}
+    50%{opacity:0.4;}
+    100%{opacity:1;}
+}
+
+button{
+    font-size:16px;
+    padding:6px 12px;
+    cursor:pointer;
+}
+
+/* ================= TABLE ================= */
+
+.wrapper{
+    padding:10px 20px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    table-layout:fixed;
+    background:#050505;
+}
+
+thead th{
+    font-size:22px;
+    padding:10px;
+    background:#111827;
+    color:#fff;
+    text-transform:uppercase;
+    border-bottom:2px solid #333;
+}
+
+tbody tr{
+    transition:all 0.4s ease;
+    border-bottom:1px solid #1f1f1f;
+}
+
+tbody td{
+    text-align:center;
+    padding:8px;
+}
+
+/* columns */
+.pos,
+.move{
+    font-size:42px;
+    font-weight:900;
+    width:90px;
+}
+
+.house img{
+    width:85px;
+    height:85px;
+    object-fit:contain;
+}
+
+.points{
+    font-size:46px;
+    font-weight:900;
+}
+
+/* ================= POSITION COLOURS ================= */
+
+/* 1st */
+.first{
+    background:var(--gold);
+    color:#000;
+    box-shadow:0 0 18px rgba(255,215,0,0.6);
+    animation:goldPulse 2s infinite;
+}
+
+@keyframes goldPulse{
+    0%{box-shadow:0 0 10px rgba(255,215,0,0.4);}
+    50%{box-shadow:0 0 22px rgba(255,215,0,0.9);}
+    100%{box-shadow:0 0 10px rgba(255,215,0,0.4);}
+}
+
+/* 2nd */
+.second{
+    background:var(--silver);
+    color:#000;
+}
+
+/* 3rd */
+.third{
+    background:rgba(205,127,50,0.35);
+    color:#000;
+}
+
+/* 4–6 MID PACK (NEW) */
+.midpack{
+    background:dimgray;
+}
+
+/* ================= MOVEMENT ================= */
+
+.up{color:#22c55e;}
+.down{color:#ef4444;}
+.same{color:#9ca3af;}
+
+/* ================= FLASH ON CHANGE ================= */
+
+@keyframes flashMove {
+    0%{background:#222; transform:scale(1);}
+    40%{transform:scale(1.02);}
+    100%{transform:scale(1);}
+}
+
+.flash{
+    animation:flashMove 0.8s ease;
+}
+
+/* ================= LAYOUT ================= */
+
+.bottom-banner{
+    display:flex;
+    justify-content:center;
+    margin-top:8px;
+}
+
+.bottom-banner img{
+    height:110px;
+}
+
+/* hide unused UI */
+#dot{display:none;}
+</style>
+</head>
+
+<body>
+
+<header>
+    <img src="top.png" alt="Top">
+
+    <div class="meta">
+        <span id="status">Loading...</span>
+        <button onclick="loadData()">Refresh</button>
+    </div>
+</header>
+
+<div class="wrapper">
+    <div id="table"></div>
+</div>
+
+<div class="bottom-banner">
+    <img src="bottom.png" alt="Bottom">
+</div>
+
+<script>
+
+const SHEET_ID = "1wEH4vFncs8p8zAHDBDdEe4J1JO-EXe0ihtUs6N4UApM";
+const SHEET_NAME = "OVERALL";
+const CALLBACK = "__cb";
+
+let previousRanks = {};
+let scriptTag;
+
+function cell(c){
+    return c?.v ?? "";
+}
+
+/* ranking */
+function computePositions(data){
+    let positions = [];
+    let pos = 1;
+
+    for(let i=0;i<data.length;i++){
+        if(i>0 && data[i].points < data[i-1].points){
+            pos = i+1;
+        }
+        positions.push(pos);
+    }
+    return positions;
+}
+
+/* movement */
+function movement(team,pos){
+    if(!(team in previousRanks)){
+        return {symbol:"▬",cls:"same"};
+    }
+    const old = previousRanks[team];
+    if(pos < old) return {symbol:"▲",cls:"up"};
+    if(pos > old) return {symbol:"▼",cls:"down"};
+    return {symbol:"▬",cls:"same"};
+}
+
+/* render */
+function render(data){
+
+    const positions = computePositions(data);
+
+    let html = `
+    <table>
+        <thead>
+            <tr>
+                <th>Pos</th>
+                <th>Move</th>
+                <th>House</th>
+                <th>Points</th>
+            </tr>
+        </thead>
+        <tbody>
+    `;
+
+    data.forEach((t,i)=>{
+
+        const pos = positions[i];
+        const move = movement(t.team,pos);
+
+        let rowClass = "";
+        if(pos===1) rowClass="first";
+        else if(pos===2) rowClass="second";
+        else if(pos===3) rowClass="third";
+        else rowClass="midpack";   // ✅ everything else (4–6)
+
+        const changed =
+            (t.team in previousRanks) &&
+            previousRanks[t.team] !== pos;
+
+        html += `
+        <tr class="${rowClass} ${changed ? 'flash' : ''}">
+            <td class="pos">${pos}</td>
+            <td class="move ${move.cls}">${move.symbol}</td>
+            <td class="house">
+                <img src="${t.team}.png" alt="${t.team}">
+            </td>
+            <td class="points">${t.points}</td>
+        </tr>`;
+    });
+
+    html += "</tbody></table>";
+
+    document.getElementById("table").innerHTML = html;
+
+    data.forEach((t,i)=>{
+        previousRanks[t.team] = positions[i];
+    });
+}
+
+/* google callback */
+window[CALLBACK] = function(res){
+
+    const rows = res.table.rows;
+
+    const data = rows.map(r=>({
+        team: cell(r.c[0]).trim(),
+        points: Number(cell(r.c[1])) || 0
+    }));
+
+    render(data);
+
+    document.getElementById("status").textContent =
+        "LIVE • " + new Date().toLocaleTimeString();
+};
+
+/* load */
+function loadData(){
+
+    if(scriptTag) scriptTag.remove();
+
+    const url =
+    `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`+
+    `?sheet=${encodeURIComponent(SHEET_NAME)}`+
+    `&range=F2:G7`+
+    `&tqx=responseHandler:${CALLBACK}`+
+    `&_=${Date.now()}`;
+
+    scriptTag = document.createElement("script");
+    scriptTag.src = url;
+
+    document.body.appendChild(scriptTag);
+}
+
+/* init */
+loadData();
+setInterval(loadData, 4 * 60 * 1000);
+
+</script>
+
+</body>
+</html>
